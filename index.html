@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weapon HUD</title>
+
+  <!-- Portals SDK -->
+  <script src="https://portals-labs.github.io/portals-sdk/portals-sdk.js?v=10005456"></script>
+
+  <style>
+    :root {
+      --hud-w: 340px;
+      --slot-h: 74px;
+      --text: rgba(255,255,255,0.94);
+      --muted: rgba(255,255,255,0.68);
+      --shadow: rgba(0,0,0,0.65);
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: transparent;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+    }
+
+    /* Position like a HUD element (top-right) */
+    .hud {
+      position: fixed;
+      top: 18px;
+      right: 18px;
+      width: min(var(--hud-w), 92vw);
+      display: grid;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .slot {
+      position: relative;
+      height: var(--slot-h);
+      display: grid;
+      grid-template-columns: 1fr 22px;
+      column-gap: 10px;
+      align-items: center;
+      isolation: isolate;
+      opacity: 0.72;
+      transition: opacity 160ms ease-out;
+    }
+
+    .slot > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Active shadow fades out to the LEFT (strongest near the right edge) */
+    .slot.active::before {
+      content: "";
+      position: absolute;
+      top: -10px;
+      bottom: -10px;
+      right: -10px;
+      left: -140px;
+      background: linear-gradient(to left, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 70%);
+      border-radius: 16px;
+      box-shadow: 0 10px 26px rgba(0,0,0,0.22);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .slot.active {
+      opacity: 1;
+    }
+
+    .main {
+      display: grid;
+      justify-items: end;
+      align-content: center;
+      row-gap: 6px;
+      min-width: 0;
+    }
+
+    .weaponIcon {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      width: 100%;
+    }
+
+    .weaponIcon svg {
+      width: 250px;
+      height: 44px;
+      display: block;
+      filter: drop-shadow(0 2px 10px rgba(0,0,0,0.35));
+    }
+
+    .weaponName {
+      font-weight: 900;
+      letter-spacing: 0.3px;
+      font-size: 14px;
+      color: rgba(255,255,255,0.92);
+      text-shadow: 0 2px 10px var(--shadow);
+      text-align: right;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .slotNum {
+      justify-self: end;
+      align-self: start;
+      font-weight: 900;
+      font-size: 12px;
+      color: rgba(255,255,255,0.95);
+      text-shadow: 0 2px 10px var(--shadow);
+      transform: translateY(2px);
+      user-select: none;
+    }
+
+    /* Optional debug (hidden by default to match CS look) */
+    .debug {
+      display: none;
+      font-size: 11px;
+      opacity: 0.55;
+      text-align: right;
+      text-shadow: 0 2px 10px var(--shadow);
+    }
+
+    @keyframes activePop {
+      0% { transform: scale(1); }
+      35% { transform: scale(1.02); }
+      100% { transform: scale(1); }
+    }
+
+    .slot.justActivated {
+      animation: activePop 240ms ease-out 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="hud" aria-label="Weapon HUD">
+    <div class="slot" id="slotPrimary">
+      <div class="main">
+        <div class="weaponIcon" id="iconPrimary" aria-hidden="true"></div>
+        <div class="weaponName" id="namePrimary">Shotgun</div>
+      </div>
+      <div class="slotNum">1</div>
+    </div>
+
+    <div class="slot" id="slotSecondary">
+      <div class="main">
+        <div class="weaponIcon" id="iconSecondary" aria-hidden="true"></div>
+        <div class="weaponName" id="nameSecondary">Pistol</div>
+      </div>
+      <div class="slotNum">2</div>
+    </div>
+
+    <div class="debug" id="debugText">Listening for SDK messages…</div>
+  </div>
+
+  <script>
+    // Placeholder "images": simple inline SVG icons for now
+    // You can swap these for <img> tags later.
+    const ICONS = {
+      Shotgun: svgIcon("Shotgun"),
+      Sniper: svgIcon("Sniper"),
+      MachineGun: svgIcon("MachineGun"),
+      Pistol: svgIcon("Pistol"),
+      HealingGun: svgIcon("HealingGun"),
+      Unknown: svgIcon("Unknown"),
+    };
+
+    function svgIcon(type) {
+      // Simple, readable silhouette-like icon using strokes.
+      // Kept minimal so it looks like a placeholder weapon glyph.
+      const label = type.replace(/([a-z])([A-Z])/g, "$1 $2");
+      const path = {
+        Shotgun: "M6 18h30v-4H20l-4-4H6z M22 14h14v4H22z",
+        Sniper: "M6 16h34v-3H22l-3-3H6z M24 13h16v6H24z M10 22h6v-3h-6z",
+        MachineGun: "M6 18h26v-4H20l-4-4H6z M32 14h10v8H32z M12 24h8v-3h-8z",
+        Pistol: "M10 14h18v4H18l-2 8h-4l2-8h-4z",
+        HealingGun: "M8 16h28v-4H20l-4-4H8z M22 22h4v-4h4v-4h-4v-4h-4v4h-4v4h4z",
+        Unknown: "M10 12h22v4H10z M18 18h6v6h-6z",
+      }[type] || "M10 12h22v4H10z";
+
+      return `
+        <svg viewBox="0 0 48 32" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${label}">
+          <path d="${path}" fill="rgba(255,255,255,0.92)" />
+        </svg>
+      `.trim();
+    }
+
+    // UI elements
+    const slotPrimary = document.getElementById('slotPrimary');
+    const slotSecondary = document.getElementById('slotSecondary');
+
+    const iconPrimary = document.getElementById('iconPrimary');
+    const iconSecondary = document.getElementById('iconSecondary');
+
+    const namePrimary = document.getElementById('namePrimary');
+    const nameSecondary = document.getElementById('nameSecondary');
+
+    const debugText = document.getElementById('debugText');
+
+    let lastActive = null;
+
+    // Only parse these parts from the message:
+    //   PrimaryWeapon="..."  SecondaryWeapon="..."  ActiveWeapon="Primary"|"Secondary"
+    function parseWeaponMessage(message) {
+      const str = String(message);
+
+      // Match quoted values (your example uses quotes). Also tolerates unquoted words.
+      const primaryMatch = str.match(/\bPrimaryWeapon\s*=\s*(?:"([^"]+)"|([^\s]+))\b/);
+      const secondaryMatch = str.match(/\bSecondaryWeapon\s*=\s*(?:"([^"]+)"|([^\s]+))\b/);
+      const activeMatch = str.match(/\bActiveWeapon\s*=\s*(?:"(Primary|Secondary)"|(Primary|Secondary))\b/);
+
+      if (!primaryMatch || !secondaryMatch || !activeMatch) return null;
+
+      const primary = (primaryMatch[1] ?? primaryMatch[2] ?? "").trim();
+      const secondary = (secondaryMatch[1] ?? secondaryMatch[2] ?? "").trim();
+      const active = (activeMatch[1] ?? activeMatch[2] ?? "").trim();
+
+      return { primary, secondary, active };
+    }
+
+    function normalizeWeaponName(name) {
+      // Accept exact set; otherwise Unknown.
+      // Also allow small variations (case-insensitive).
+      const trimmed = String(name || "").trim();
+      const key = Object.keys(ICONS).find(k => k.toLowerCase() === trimmed.toLowerCase());
+      return key || 'Unknown';
+    }
+
+    function setSlot(slotEl, iconEl, nameEl, weaponName) {
+      const normalized = normalizeWeaponName(weaponName);
+      nameEl.textContent = normalized === 'Unknown' ? weaponName || 'Unknown' : normalized;
+      iconEl.innerHTML = ICONS[normalized] || ICONS.Unknown;
+    }
+
+    function setActive(active) {
+      slotPrimary.classList.toggle('active', active === 'Primary');
+      slotSecondary.classList.toggle('active', active === 'Secondary');
+
+      if (active && active !== lastActive) {
+        const target = active === 'Primary' ? slotPrimary : slotSecondary;
+        target.classList.remove('justActivated');
+        void target.offsetWidth;
+        target.classList.add('justActivated');
+        clearTimeout(target._t);
+        target._t = setTimeout(() => target.classList.remove('justActivated'), 320);
+      }
+
+      lastActive = active;
+    }
+
+    function applyState(state) {
+      setSlot(slotPrimary, iconPrimary, namePrimary, state.primary);
+      setSlot(slotSecondary, iconSecondary, nameSecondary, state.secondary);
+      setActive(state.active);
+
+      debugText.textContent = `Primary=${state.primary}  Secondary=${state.secondary}  Active=${state.active}`;
+    }
+
+    // Initialize with defaults
+    applyState({ primary: 'Shotgun', secondary: 'Pistol', active: 'Primary' });
+
+    // SDK listener (assume present)
+    try {
+      PortalsSdk.setMessageListener((message) => {
+        console.log('PORTALS MSG:', message);
+
+        const parsed = parseWeaponMessage(message);
+        if (!parsed) {
+          debugText.textContent = `Missing weapon fields in message.`;
+          return;
+        }
+
+        // Only act on these fields; ignore everything else.
+        applyState(parsed);
+      });
+
+      debugText.textContent = 'Listening for SDK messages…';
+    } catch (e) {
+      console.error(e);
+      debugText.textContent = 'PortalsSdk not available.';
+    }
+  </script>
+</body>
+</html>
