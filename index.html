@@ -10,8 +10,8 @@
 
   <style>
     :root {
-      --hud-w: 100px;
-      --slot-h: 74px;
+      --hud-w: 185px;
+      --slot-h: 96px;
       --text: rgba(255,255,255,0.94);
       --muted: rgba(255,255,255,0.68);
       --shadow: rgba(0,0,0,0.65);
@@ -74,30 +74,30 @@
 
     .main {
       display: grid;
-      justify-items: stretch; /* important: constrain children so ellipsis can work */
+      justify-items: end;
       align-content: center;
       row-gap: 6px;
       min-width: 0;
-      overflow: hidden;
+      overflow: visible; /* allow icon/text to extend left */
     }
 
-    .weaponIcon{
-      height: 40px;          /* fixed height so icons never jump */
-      overflow: hidden;      /* clip if needed */
+    .weaponIcon {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
       width: 100%;
       justify-self: end;
       min-width: 0;
-      display: flex;
-      justify-content: flex-end; /* right align */
-      align-items: center;
+      overflow: visible;
+      height: 56px;
     }
 
-    .weaponIcon svg{
-      width: 100%;
-      max-width: 175px;      /* tune for HUD width 185 */
-      height: 40px;
+    .weaponIcon svg {
+      width: 320px;            /* bigger silhouettes (can overflow left) */
+      max-width: none;
+      height: 56px;
       display: block;
-      margin-left: auto;     /* keep anchored on the right */
+      margin-left: auto;       /* keep right edge fixed */
       filter: drop-shadow(0 2px 10px rgba(0,0,0,0.35));
     }
 
@@ -109,12 +109,13 @@
       text-shadow: 0 2px 10px var(--shadow);
       text-align: right;
       white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 100%;
-      width: 100%;
+      overflow: visible;       /* never cut */
+      text-overflow: clip;
+      width: max-content;      /* grow left as needed */
+      max-width: none;
       justify-self: end;
       min-width: 0;
+      pointer-events: none;
     }
 
     .slotNum {
@@ -182,63 +183,66 @@
     };
 
     function svgIcon(type) {
-  // Right-aligned placeholders: each icon's right edge lines up consistently.
-  const label = type.replace(/([a-z])([A-Z])/g, "$1 $2");
+      // Bigger, knife-like placeholder silhouettes.
+      // All icons share the same wide viewBox and are drawn RIGHT-ANCHORED
+      // so the right edge stays fixed while the left can extend.
+      const label = type.replace(/([a-z])([A-Z])/g, "$1 $2");
+      const F = 'rgba(255,255,255,0.92)';
 
-  const svgOpen = `<svg viewBox="0 0 120 32" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${label}" preserveAspectRatio="xMaxYMid meet">`;
-  const svgClose = `</svg>`;
-  const F = `rgba(255,255,255,0.92)`;
+      const svgOpen = `<svg viewBox="0 0 220 32" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${label}" preserveAspectRatio="xMaxYMid meet">`;
+      const svgClose = `</svg>`;
 
-  const rect = (x, y, w, h, rx = 1.2) =>
-    `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${F}" />`;
+      const rect = (x, y, w, h, rx = 1.2) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${F}" />`;
+      const poly = (pts) => `<polygon points="${pts}" fill="${F}" />`;
 
-  let parts = "";
-  switch (type) {
-    case "Shotgun":
-      parts += rect(18, 14, 100, 4);  // ends at 118
-      parts += rect(6, 12, 14, 8);
-      parts += rect(58, 18, 16, 3);
-      parts += rect(38, 18, 8, 6);
-      break;
+      // Right edge target: x = 216
+      let parts = '';
+      switch (type) {
+        case 'Shotgun':
+          parts += rect(34, 14, 182, 4);       // ends at 216
+          parts += rect(16, 12, 18, 8);
+          parts += rect(100, 18, 30, 3, 1.0);
+          parts += rect(68, 18, 10, 10, 1.0);
+          break;
 
-    case "Sniper":
-      parts += rect(10, 15, 108, 3);  // ends at 118
-      parts += rect(4, 12, 12, 8);
-      parts += rect(66, 10, 22, 4);
-      parts += rect(28, 18, 7, 7);
-      parts += rect(86, 18, 10, 2, 0.8);
-      break;
+        case 'Sniper':
+          parts += rect(24, 15, 192, 3, 1.0);
+          parts += rect(10, 12, 16, 8);
+          parts += rect(134, 9, 36, 4, 1.2);
+          parts += rect(60, 18, 9, 10, 1.0);
+          parts += rect(210, 14, 6, 6, 0.8);
+          break;
 
-    case "MachineGun":
-      parts += rect(16, 13, 102, 5);  // ends at 118
-      parts += rect(6, 12, 12, 9);
-      parts += rect(54, 19, 16, 9);
-      parts += rect(34, 18, 8, 8);
-      parts += rect(82, 19, 10, 3, 0.8);
-      break;
+        case 'MachineGun':
+          parts += rect(30, 13, 186, 5);
+          parts += rect(12, 12, 18, 9);
+          parts += rect(94, 19, 26, 12, 1.2);
+          parts += rect(62, 18, 10, 10, 1.0);
+          parts += rect(120, 11, 56, 2, 0.8);
+          break;
 
-    case "Pistol":
-      parts += rect(70, 14, 48, 4);   // ends at 118 (short weapon, right-aligned)
-      parts += rect(92, 18, 10, 10);
-      parts += rect(78, 18, 8, 5);
-      break;
+        case 'Pistol':
+          parts += rect(126, 14, 90, 4);
+          parts += rect(176, 18, 16, 12, 1.2);
+          parts += poly('168,18 176,18 176,22 168,22');
+          break;
 
-    case "HealingGun":
-      parts += rect(26, 14, 92, 4);   // ends at 118
-      parts += rect(10, 12, 14, 8);
-      parts += rect(44, 18, 8, 7);
-      parts += rect(64, 8, 6, 18, 0.8);
-      parts += rect(56, 14, 22, 6, 0.8);
-      break;
+        case 'HealingGun':
+          parts += rect(40, 14, 176, 4);
+          parts += rect(20, 12, 20, 8);
+          parts += rect(76, 18, 10, 10, 1.0);
+          parts += rect(150, 6, 6, 20, 0.8);
+          parts += rect(142, 14, 22, 6, 0.8);
+          break;
 
-    default:
-      parts += rect(52, 13, 66, 6);
-      parts += rect(84, 20, 12, 8);
-      break;
-  }
+        default:
+          parts += rect(108, 13, 108, 6);
+          parts += rect(182, 20, 18, 10);
+          break;
+      }
 
-  return `${svgOpen}${parts}${svgClose}`;
-}
+      return `${svgOpen}${parts}${svgClose}`;
+    }
 
     // UI elements
     const slotPrimary = document.getElementById('slotPrimary');
@@ -260,9 +264,9 @@
       const str = String(message);
 
       // Match quoted values (your example uses quotes). Also tolerates unquoted words.
-      const primaryMatch = str.match(/\bPrimaryWeapon\s*=\s*(?:"([^"]+)"|([^\s]+))\b/);
-      const secondaryMatch = str.match(/\bSecondaryWeapon\s*=\s*(?:"([^"]+)"|([^\s]+))\b/);
-      const activeMatch = str.match(/\bActiveWeapon\s*=\s*(?:"(Primary|Secondary)"|(Primary|Secondary))\b/);
+      const primaryMatch = str.match(/PrimaryWeapon *= *(?:"([^"]+)"|([^ ]+))/);
+      const secondaryMatch = str.match(/SecondaryWeapon *= *(?:"([^"]+)"|([^ ]+))/);
+      const activeMatch = str.match(/ActiveWeapon *= *(?:"(Primary|Secondary)"|(Primary|Secondary))/);
 
       if (!primaryMatch || !secondaryMatch || !activeMatch) return null;
 
