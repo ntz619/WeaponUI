@@ -11,7 +11,9 @@
   <style>
     :root {
       --hud-w: 120px;
-      --slot-h: 72px;
+      --img-w: 280px;
+      --img-h: 48px;
+      --slot-h: calc(var(--img-h) + 28px);
       --text: rgba(255,255,255,0.94);
       --muted: rgba(255,255,255,0.68);
       --shadow: rgba(0,0,0,0.65);
@@ -89,13 +91,13 @@
       justify-self: end;
       min-width: 0;
       overflow: visible;
-      height: 44px;
+      height: var(--img-h);
     }
 
     .weaponIcon img {
-      width: 260px;            /* can overflow left */
+      width: var(--img-w);            /* can overflow left */
       max-width: none;
-      height: 44px;
+      height: var(--img-h);
       display: block;
       margin-left: auto;       /* keep right edge fixed */
       object-fit: contain;
@@ -186,12 +188,12 @@
     //   /img/healinggun.png
     //   /img/unknown.png
     const ICONS = {
-      Shotgun: "https://ntz619.github.io/WeaponUI/img/shotgun.png",
-      Sniper: "https://ntz619.github.io/WeaponUI/img/sniper.png",
-      MachineGun: "https://ntz619.github.io/WeaponUI/img/machinegun.png",
-      Pistol: "https://ntz619.github.io/WeaponUI/img/pistol.png",
-      HealingGun: "https://ntz619.github.io/WeaponUI/img/healinggun.png",
-      Unknown: "https://ntz619.github.io/WeaponUI/img/image.png" // fallback (your example path)
+      Shotgun: "img/shotgun.png",
+      Sniper: "img/sniper.png",
+      MachineGun: "img/machinegun.png",
+      Pistol: "img/pistol.png",
+      HealingGun: "img/healinggun.png",
+      Unknown: "img/image.png" // fallback (your example path)
     };
 
     // Optional: preload to avoid flicker
