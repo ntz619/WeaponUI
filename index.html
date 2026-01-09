@@ -12,12 +12,12 @@
     :root {
       /* Main knobs */
       --ui-scale: 1;         /* scale the whole HUD */
-      --hud-w: 185px;        /* HUD width (slot width) */
+      --hud-w: 200px;        /* HUD width (slot width) */
       --slot-h: 72px;        /* each weapon slot height */
       --slot-gap: 14px;      /* gap between slots */
       --slot-radius: 10px;
 
-      --weapon-scale: 1.08;  /* scales weapon image inside the slot */
+      --weapon-scale: 1.25;  /* scales weapon image inside the slot */
 
       /* Number position */
       --num-right: 6px;
@@ -106,8 +106,8 @@
 
     .weaponIcon img {
       position: absolute;
-      right: 0;
-      top: 50%;
+      right: -10%;
+      top: 75%;
       transform: translateY(-50%) scale(var(--weapon-scale));
       transform-origin: right center;
 
