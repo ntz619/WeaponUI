@@ -10,7 +10,7 @@
 
   <style>
     :root {
-      --hud-w: 185px;
+      --hud-w: 100px;
       --slot-h: 74px;
       --text: rgba(255,255,255,0.94);
       --muted: rgba(255,255,255,0.68);
@@ -30,6 +30,7 @@
       position: fixed;
       top: 18px;
       right: 18px;
+      width: min(var(--hud-w), 92vw);
       display: grid;
       gap: 10px;
       pointer-events: none;
@@ -80,20 +81,23 @@
       overflow: hidden;
     }
 
-    .weaponIcon {
-      display: flex;
-      justify-content: flex-end;
-      align-items: center;
+    .weaponIcon{
+      height: 40px;          /* fixed height so icons never jump */
+      overflow: hidden;      /* clip if needed */
       width: 100%;
       justify-self: end;
       min-width: 0;
+      display: flex;
+      justify-content: flex-end; /* right align */
+      align-items: center;
     }
 
-    .weaponIcon svg {
+    .weaponIcon svg{
       width: 100%;
-      max-width: 170px;
+      max-width: 175px;      /* tune for HUD width 185 */
       height: 40px;
       display: block;
+      margin-left: auto;     /* keep anchored on the right */
       filter: drop-shadow(0 2px 10px rgba(0,0,0,0.35));
     }
 
@@ -178,24 +182,63 @@
     };
 
     function svgIcon(type) {
-      // Simple, readable silhouette-like icon using strokes.
-      // Kept minimal so it looks like a placeholder weapon glyph.
-      const label = type.replace(/([a-z])([A-Z])/g, "$1 $2");
-      const path = {
-        Shotgun: "M6 18h30v-4H20l-4-4H6z M22 14h14v4H22z",
-        Sniper: "M6 16h34v-3H22l-3-3H6z M24 13h16v6H24z M10 22h6v-3h-6z",
-        MachineGun: "M6 18h26v-4H20l-4-4H6z M32 14h10v8H32z M12 24h8v-3h-8z",
-        Pistol: "M10 14h18v4H18l-2 8h-4l2-8h-4z",
-        HealingGun: "M8 16h28v-4H20l-4-4H8z M22 22h4v-4h4v-4h-4v-4h-4v4h-4v4h4z",
-        Unknown: "M10 12h22v4H10z M18 18h6v6h-6z",
-      }[type] || "M10 12h22v4H10z";
+  // Right-aligned placeholders: each icon's right edge lines up consistently.
+  const label = type.replace(/([a-z])([A-Z])/g, "$1 $2");
 
-      return `
-        <svg viewBox="0 0 48 32" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${label}">
-          <path d="${path}" fill="rgba(255,255,255,0.92)" />
-        </svg>
-      `.trim();
-    }
+  const svgOpen = `<svg viewBox="0 0 120 32" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${label}" preserveAspectRatio="xMaxYMid meet">`;
+  const svgClose = `</svg>`;
+  const F = `rgba(255,255,255,0.92)`;
+
+  const rect = (x, y, w, h, rx = 1.2) =>
+    `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${F}" />`;
+
+  let parts = "";
+  switch (type) {
+    case "Shotgun":
+      parts += rect(18, 14, 100, 4);  // ends at 118
+      parts += rect(6, 12, 14, 8);
+      parts += rect(58, 18, 16, 3);
+      parts += rect(38, 18, 8, 6);
+      break;
+
+    case "Sniper":
+      parts += rect(10, 15, 108, 3);  // ends at 118
+      parts += rect(4, 12, 12, 8);
+      parts += rect(66, 10, 22, 4);
+      parts += rect(28, 18, 7, 7);
+      parts += rect(86, 18, 10, 2, 0.8);
+      break;
+
+    case "MachineGun":
+      parts += rect(16, 13, 102, 5);  // ends at 118
+      parts += rect(6, 12, 12, 9);
+      parts += rect(54, 19, 16, 9);
+      parts += rect(34, 18, 8, 8);
+      parts += rect(82, 19, 10, 3, 0.8);
+      break;
+
+    case "Pistol":
+      parts += rect(70, 14, 48, 4);   // ends at 118 (short weapon, right-aligned)
+      parts += rect(92, 18, 10, 10);
+      parts += rect(78, 18, 8, 5);
+      break;
+
+    case "HealingGun":
+      parts += rect(26, 14, 92, 4);   // ends at 118
+      parts += rect(10, 12, 14, 8);
+      parts += rect(44, 18, 8, 7);
+      parts += rect(64, 8, 6, 18, 0.8);
+      parts += rect(56, 14, 22, 6, 0.8);
+      break;
+
+    default:
+      parts += rect(52, 13, 66, 6);
+      parts += rect(84, 20, 12, 8);
+      break;
+  }
+
+  return `${svgOpen}${parts}${svgClose}`;
+}
 
     // UI elements
     const slotPrimary = document.getElementById('slotPrimary');
