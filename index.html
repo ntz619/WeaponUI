@@ -11,9 +11,9 @@
   <style>
     :root {
       --hud-w: 120px;
-      --img-w: 350px;
-      --img-h: 75px;
-      --slot-h: calc(var(--img-h) + 28px);
+      --img-box-w: 280px;
+      --img-box-h: 48px;
+      --slot-h: calc(var(--img-box-h) + 28px);
       --text: rgba(255,255,255,0.94);
       --muted: rgba(255,255,255,0.68);
       --shadow: rgba(0,0,0,0.65);
@@ -84,24 +84,30 @@
     }
 
     .weaponIcon {
-      display: flex;
-      justify-content: flex-end;
-      align-items: center;
-      width: 100%;
+      position: relative;
+      display: block;
       justify-self: end;
-      min-width: 0;
+      width: 100%;
+      max-width: var(--img-box-w);   /* box acts as max width */
+      height: var(--img-box-h);      /* box acts as max height */
       overflow: visible;
-      height: var(--img-h);
     }
 
     .weaponIcon img {
-      width: var(--img-w);            /* can overflow left */
-      max-width: none;
-      height: var(--img-h);
-      display: block;
-      margin-left: auto;       /* keep right edge fixed */
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+
+      /* Fit INSIDE the box while keeping aspect ratio */
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
       object-fit: contain;
-      object-position: right center; /* keep weapon fixed on the right */
+      object-position: right center;
+
+      display: block;
       filter: drop-shadow(0 2px 10px rgba(0,0,0,0.35));
       user-select: none;
       -webkit-user-drag: none;
