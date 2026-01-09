@@ -233,104 +233,125 @@
 
     let lastActive = null;
 
-    // Only parse these parts from the message:
-    //   PrimaryWeapon="..."  SecondaryWeapon="..."  ActiveWeapon="Primary"|"Secondary"
     function parseWeaponMessage(message) {
-      const str = String(message);
+    const str = String(message);
 
-      // Match quoted values (your example uses quotes). Also tolerates unquoted words.
-      const primaryMatch = str.match(/PrimaryWeapon *= *(?:"([^"]+)"|([^ ]+))/);
-      const secondaryMatch = str.match(/SecondaryWeapon *= *(?:"([^"]+)"|([^ ]+))/);
-      const activeMatch = str.match(/ActiveWeapon *= *(?:"(Primary|Secondary)"|(Primary|Secondary))/);
+    // Tolerates quoted or unquoted values
+    const primaryMatch   = str.match(/PrimaryWeapon\s*=\s*(?:"([^"]+)"|([^\s]+))/i);
+    const secondaryMatch = str.match(/SecondaryWeapon\s*=\s*(?:"([^"]+)"|([^\s]+))/i);
+    const activeMatch    = str.match(/ActiveWeapon\s*=\s*(?:"(Primary|Secondary)"|(Primary|Secondary))/i);
 
-      if (!primaryMatch || !secondaryMatch || !activeMatch) return null;
+    const out = {};
 
-      const primary = (primaryMatch[1] ?? primaryMatch[2] ?? "").trim();
-      const secondary = (secondaryMatch[1] ?? secondaryMatch[2] ?? "").trim();
-      const active = (activeMatch[1] ?? activeMatch[2] ?? "").trim();
-
-      return { primary, secondary, active };
+    if (primaryMatch) {
+      out.primary = (primaryMatch[1] ?? primaryMatch[2] ?? "").trim();
+    }
+    if (secondaryMatch) {
+      out.secondary = (secondaryMatch[1] ?? secondaryMatch[2] ?? "").trim();
+    }
+    if (activeMatch) {
+      out.active = (activeMatch[1] ?? activeMatch[2] ?? "").trim();
     }
 
-    function normalizeWeaponName(name) {
-      // Accept exact set; otherwise Unknown.
-      // Also allow small variations (case-insensitive).
-      const trimmed = String(name || "").trim();
-      const key = Object.keys(ICONS).find(k => k.toLowerCase() === trimmed.toLowerCase());
-      return key || 'Unknown';
+    // If message had none of the fields we care about, ignore it
+    if (!out.primary && !out.secondary && !out.active) return null;
+
+    return out;
+  }
+
+  function normalizeWeaponName(name) {
+    const trimmed = String(name || "").trim();
+    const key = Object.keys(ICONS).find(k => k.toLowerCase() === trimmed.toLowerCase());
+    return key || 'Unknown';
+  }
+
+  function setSlot(slotEl, iconEl, nameEl, weaponName) {
+    const normalized = normalizeWeaponName(weaponName);
+    nameEl.textContent = normalized === 'Unknown' ? (weaponName || 'Unknown') : normalized;
+
+    const src = ICONS[normalized] || ICONS.Unknown;
+
+    let img = iconEl.querySelector('img');
+    if (!img) {
+      img = document.createElement('img');
+      img.draggable = false;
+      iconEl.innerHTML = '';
+      iconEl.appendChild(img);
     }
 
-    function setSlot(slotEl, iconEl, nameEl, weaponName) {
-      const normalized = normalizeWeaponName(weaponName);
-      nameEl.textContent = normalized === 'Unknown' ? (weaponName || 'Unknown') : normalized;
+    img.alt = normalized;
+    img.onerror = () => {
+      img.onerror = null;
+      img.src = ICONS.Unknown;
+    };
+    img.src = src;
+  }
 
-      const src = ICONS[normalized] || ICONS.Unknown;
+  function setActive(active) {
+    slotPrimary.classList.toggle('active', active === 'Primary');
+    slotSecondary.classList.toggle('active', active === 'Secondary');
 
-      // Reuse a single <img> per slot
-      let img = iconEl.querySelector('img');
-      if (!img) {
-        img = document.createElement('img');
-        img.draggable = false;
-        iconEl.innerHTML = '';
-        iconEl.appendChild(img);
+    if (active && active !== lastActive) {
+      const target = active === 'Primary' ? slotPrimary : slotSecondary;
+      target.classList.remove('justActivated');
+      void target.offsetWidth;
+      target.classList.add('justActivated');
+      clearTimeout(target._t);
+      target._t = setTimeout(() => target.classList.remove('justActivated'), 320);
+    }
+
+    lastActive = active;
+  }
+
+  // NEW: apply only what we received, keep the rest unchanged
+  function applyPartialState(partial) {
+    if (partial.primary != null) {
+      setSlot(slotPrimary, iconPrimary, namePrimary, partial.primary);
+    }
+    if (partial.secondary != null) {
+      setSlot(slotSecondary, iconSecondary, nameSecondary, partial.secondary);
+    }
+    if (partial.active != null) {
+      setActive(partial.active);
+    }
+
+    // Debug: show current visible state, not only the incoming message
+    const currentPrimary = namePrimary.textContent;
+    const currentSecondary = nameSecondary.textContent;
+    const currentActive = slotPrimary.classList.contains('active') ? 'Primary'
+                        : slotSecondary.classList.contains('active') ? 'Secondary'
+                        : lastActive;
+
+    debugText.textContent = `Primary=${currentPrimary}  Secondary=${currentSecondary}  Active=${currentActive}`;
+  }
+
+  // Initialize with defaults
+  applyPartialState({ primary: 'Shotgun', secondary: 'Pistol', active: 'Primary' });
+
+  // SDK listener (updated)
+  try {
+    PortalsSdk.setMessageListener((message) => {
+      console.log('PORTALS MSG:', message);
+
+      const parsed = parseWeaponMessage(message);
+      if (!parsed) {
+        debugText.textContent = `No weapon fields in message.`;
+        return;
       }
 
-      img.alt = normalized;
-      img.onerror = () => {
-        img.onerror = null;
-        img.src = ICONS.Unknown;
-      };
-      img.src = src;
-    }
+      // Only update what exists in the message:
+      // - If only ActiveWeapon=..., only active changes.
+      // - If full message, weapons + active update.
+      applyPartialState(parsed);
+    });
 
-    function setActive(active) {
-      slotPrimary.classList.toggle('active', active === 'Primary');
-      slotSecondary.classList.toggle('active', active === 'Secondary');
+    debugText.textContent = 'Listening for SDK messages…';
+  } catch (e) {
+    console.error(e);
+    debugText.textContent = 'PortalsSdk not available.';
+  }
 
-      if (active && active !== lastActive) {
-        const target = active === 'Primary' ? slotPrimary : slotSecondary;
-        target.classList.remove('justActivated');
-        void target.offsetWidth;
-        target.classList.add('justActivated');
-        clearTimeout(target._t);
-        target._t = setTimeout(() => target.classList.remove('justActivated'), 320);
-      }
-
-      lastActive = active;
-    }
-
-    function applyState(state) {
-      setSlot(slotPrimary, iconPrimary, namePrimary, state.primary);
-      setSlot(slotSecondary, iconSecondary, nameSecondary, state.secondary);
-      setActive(state.active);
-
-      debugText.textContent = `Primary=${state.primary}  Secondary=${state.secondary}  Active=${state.active}`;
-    }
-
-    // Initialize with defaults
-    applyState({ primary: 'Shotgun', secondary: 'Pistol', active: 'Primary' });
-
-    // SDK listener (assume present)
-    try {
-      PortalsSdk.setMessageListener((message) => {
-        console.log('PORTALS MSG:', message);
-
-        const parsed = parseWeaponMessage(message);
-        if (!parsed) {
-          debugText.textContent = `Missing weapon fields in message.`;
-          return;
-        }
-
-        // Only act on these fields; ignore everything else.
-        applyState(parsed);
-      });
-
-      debugText.textContent = 'Listening for SDK messages…';
-    } catch (e) {
-      console.error(e);
-      debugText.textContent = 'PortalsSdk not available.';
-    }
-    PortalsSdk.focusGameKeyboard();
-  </script>
+  PortalsSdk.focusGameKeyboard();
+</script>
 </body>
 </html>
